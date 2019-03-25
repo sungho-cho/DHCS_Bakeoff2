@@ -21,6 +21,11 @@ float screenTransY = 0;
 float screenRotation = 0;
 float screenZ = 50f;
 
+// Variables for sizeRect
+float sizeRectWidth;
+boolean sr_topLeft = false;
+boolean sr_bottomRight = false;
+
 private class Target
 {
   float x = 0;
@@ -99,6 +104,13 @@ void draw() {
   strokeWeight(3f);
   stroke(160);
   rect(0, 0, screenZ, screenZ);
+  
+  // Size Rect 
+  fill(160);
+  sizeRectWidth = screenZ/7;
+  rect(-screenZ/2, -screenZ/2, sizeRectWidth, sizeRectWidth);
+  rect(+screenZ/2, +screenZ/2, sizeRectWidth, sizeRectWidth);
+  
   popMatrix();
 
   //===========DRAW EXAMPLE CONTROLS=================
@@ -110,6 +122,17 @@ void draw() {
 //my example design for control, which is terrible
 void scaffoldControlLogic()
 {
+  // Size Rect
+  float cursorCenterX = screenTransX + width/2;
+  float cursorCenterY = screenTransY + height/2;
+  
+  if (mousePressed && dist(cursorCenterX - screenZ/2, cursorCenterY - screenZ/2, mouseX, mouseY) < sizeRectWidth) {
+    sr_topLeft = true;
+  }
+  if (mousePressed && dist(cursorCenterX + screenZ/2, cursorCenterY + screenZ/2, mouseX, mouseY) < sizeRectWidth) {
+    sr_bottomRight = true;
+  }
+  
   //upper left corner, rotate counterclockwise
   text("CCW", inchToPix(.4f), inchToPix(.4f));
   if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
@@ -161,6 +184,12 @@ void mousePressed()
 
 void mouseReleased()
 {
+  if (sr_topLeft || sr_bottomRight) {
+    sr_topLeft = false;
+    sr_bottomRight = false;
+    return;
+  }
+  
   //check to see if user clicked middle of screen within 3 inches
   if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
   {
@@ -174,6 +203,21 @@ void mouseReleased()
       userDone = true;
       finishTime = millis();
     }
+  }
+}
+
+void mouseDragged() {
+  float cursorCenterX = screenTransX + width/2;
+  float cursorCenterY = screenTransY + height/2;
+  
+  float diffX = cursorCenterX - mouseX;
+  float diffY = cursorCenterY - mouseY;
+    
+  if (sr_topLeft) {
+    screenZ = constrain(max(diffX,diffY) * 2, .01, inchToPix(4f));
+  }
+  else if (sr_bottomRight) {
+    screenZ = constrain(-max(diffX,diffY) * 2, .01, inchToPix(4f));
   }
 }
 
