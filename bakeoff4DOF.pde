@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Arrays;
 
 //these are variables you should probably leave alone
 int index = 0; //starts at zero-ith trial
@@ -22,32 +21,12 @@ float screenTransY = 0;
 float screenRotation = 0;
 float screenZ = 50f;
 
-// Size Control
-float sizeControlSize;
-boolean scClicked = false;
-
-// Rotation Control
-float rotationControlSize = 10.0f;
-Point rotationPoint;
-float hoveringDist = 30.0f;
-boolean rcClicked = false;
-
 private class Target
 {
   float x = 0;
   float y = 0;
   float rotation = 0;
   float z = 0;
-}
-
-private class Point
-{
-  float x,y;
-  
-  Point(float x, float y) {
-    this.x = x;
-    this.y = y;
-  }
 }
 
 ArrayList<Target> targets = new ArrayList<Target>();
@@ -69,7 +48,7 @@ void setup() {
     t.y = random(-height/2+border, height/2-border); //set a random y with some padding
     t.rotation = random(0, 360); //random rotation between 0 and 360
     int j = (int)random(20);
-    t.z = ((j%20)+1)*inchToPix(.15f); //increasing size from .15 up to 3.0" 
+    t.z = ((j%12)+1)*inchToPix(.25f); //increasing size from .25 up to 3.0" 
     targets.add(t);
     println("created target with " + t.x + "," + t.y + "," + t.rotation + "," + t.z);
   }
@@ -121,18 +100,6 @@ void draw() {
   stroke(160);
   rect(0, 0, screenZ, screenZ);
   popMatrix();
-  
-  //===========DRAW SIZE CONTROL=================
-  fill(160);
-  sizeControlSize = screenZ / 7;
-  Point[] corners = getCorners();
-  for (Point point : corners) {
-    circle(point.x, point.y, sizeControlSize);
-  }
-  
-  //===========DRAW ROTATION CONTROL=================
-  rotationPoint = getHoveringPoint(corners[0], corners[1]);
-  circle(rotationPoint.x, rotationPoint.y, rotationControlSize);
 
   //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
@@ -143,17 +110,6 @@ void draw() {
 //my example design for control, which is terrible
 void scaffoldControlLogic()
 {
-  // Size Control
-  for (Point corner : getCorners()) {
-    if(mousePressed && dist(corner.x, corner.y, mouseX, mouseY) < sizeControlSize && !rcClicked) {
-      scClicked = true;
-    }
-  }
-  
-  if(mousePressed && dist(rotationPoint.x, rotationPoint.y, mouseX, mouseY) < rotationControlSize && !scClicked) {
-    rcClicked = true;
-  }
-  
   //upper left corner, rotate counterclockwise
   text("CCW", inchToPix(.4f), inchToPix(.4f));
   if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
@@ -205,15 +161,6 @@ void mousePressed()
 
 void mouseReleased()
 {
-  if (scClicked) {
-    scClicked = false;
-    return;
-  }
-  if (rcClicked) {
-    rcClicked = false;
-    return;
-  }
-  
   //check to see if user clicked middle of screen within 3 inches
   if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
   {
@@ -228,51 +175,6 @@ void mouseReleased()
       finishTime = millis();
     }
   }
-}
-
-void mouseDragged() {
-  // Size Control
-  float cursorX = screenTransX + width/2;
-  float cursorY = screenTransY + height/2;
-  float distance = dist(cursorX, cursorY, mouseX, mouseY);
-  if (scClicked) {
-    screenZ = constrain(sqrt(2) * distance, .01, inchToPix(4f));
-  }
-  if (rcClicked) {
-    float rotation = PI * -2/4 + atan2((cursorY - mouseY), (cursorX - mouseX));
-    screenRotation = rotation * 180 / PI;
-  }
-}
-
-Point[] getCorners() {
-  float x = screenTransX + width/2;
-  float y = screenTransY + height/2;
-  
-  float rectDiag = sqrt((screenZ*screenZ)/2);
-  float rectAngle = (float)Math.PI / 4;
-  float rotation = screenRotation * (float)Math.PI / 180;
-  
-  Point[] corners = new Point[4];
-  corners[0] = new Point(x +  rectDiag * cos(-rectAngle + rotation), y +  rectDiag * sin(-rectAngle + rotation));
-  corners[1] = new Point(x + -rectDiag * cos( rectAngle + rotation), y + -rectDiag * sin( rectAngle + rotation));
-  corners[2] = new Point(x + -rectDiag * cos(-rectAngle + rotation), y + -rectDiag * sin(-rectAngle + rotation));
-  corners[3] = new Point(x +  rectDiag * cos( rectAngle + rotation), y +  rectDiag * sin( rectAngle + rotation));
-  
-  return corners;
-}
-
-Point getHoveringPoint(Point p1, Point p2) {
-  float x1 = p1.x;
-  float y1 = p1.y;
-  float x2 = p2.x;
-  float y2 = p2.y;
-  
-  float diagLen = sqrt(pow((y1-y2),2) + pow((x1-x2),2));
-  
-  float x = (x1+x2)/2 + hoveringDist * (y1-y2) / diagLen;
-  float y = (y1+y2)/2 + hoveringDist * (x2-x1) / diagLen;
-  
-  return new Point(x,y);
 }
 
 
