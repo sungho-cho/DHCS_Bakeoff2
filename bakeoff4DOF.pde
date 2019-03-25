@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Arrays;
 
 //these are variables you should probably leave alone
 int index = 0; //starts at zero-ith trial
@@ -21,12 +22,42 @@ float screenTransY = 0;
 float screenRotation = 0;
 float screenZ = 50f;
 
+// Translation Control
+float rectDiag = sqrt((screenZ*screenZ)/2);
+boolean tcClicked = false;
+float tcOffsetX, tcOffsetY;
+
+// Size Control
+float sizeControlSize;
+boolean scClicked = false;
+
+// Rotation Control
+float rotationControlSize = 10.0f;
+Point rotationPoint;
+float hoveringDist = 30.0f;
+boolean rcClicked = false;
+
+// Green signals
+boolean translation_green = false;
+boolean size_green = false;
+boolean rotation_green = false;
+
 private class Target
 {
   float x = 0;
   float y = 0;
   float rotation = 0;
   float z = 0;
+}
+
+private class Point
+{
+  float x,y;
+  
+  Point(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
 }
 
 ArrayList<Target> targets = new ArrayList<Target>();
@@ -87,6 +118,10 @@ void draw() {
     else
       fill(128, 60, 60, 128); //set color to semi translucent
     rect(0, 0, t.z, t.z);
+    // CENTER POINT
+    noStroke();
+    fill(0,255,0);
+    circle(0,0,10);
     popMatrix();
   }
 
@@ -98,37 +133,95 @@ void draw() {
   noFill();
   strokeWeight(3f);
   stroke(160);
+  if (translation_green && rotation_green && size_green) stroke(0,255,0);
   rect(0, 0, screenZ, screenZ);
+  // CENTER POINT
+  noStroke();
+  fill(255,255,0);
+  circle(0,0,10);
+  
+  
   popMatrix();
+  
+  //===========DRAW SIZE CONTROL=================
+  fill(160);
+  sizeControlSize = screenZ * 2 / 27 + (234/27);
+  Point[] corners = getCorners();
+  for (Point point : corners) {
+    circle(point.x, point.y, sizeControlSize);
+  }
+  
+  //===========DRAW ROTATION CONTROL=================
+  rotationPoint = getHoveringPoint(corners[0], corners[1]);
+  circle(rotationPoint.x, rotationPoint.y, rotationControlSize);
 
   //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
   scaffoldControlLogic(); //you are going to want to replace this!
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
+  
+  //===========DRAW GREEN SIGNALS=================
+  float signalHGap = inchToPix(0.3f);
+  float signalVGap = inchToPix(0.5f);
+  float signalSize = inchToPix(0.5f);
+  float signalFontSize = 13.0;
+  
+  float x = width - signalSize;
+  float y = signalVGap;
+  noStroke();
+  textSize(signalFontSize);
+  // Rotation Green Signal
+  if (rotation_green) fill(0,200,30);
+  else fill(160);
+  rect(x, y, signalSize, signalSize);
+  fill(255);
+  text("Rotation", x, y + signalSize);
+  
+  // Size Green Signal
+  x -= signalSize + signalHGap;
+  if (size_green) fill(0,200,30);
+  else fill(160);
+  rect(x, y, signalSize, signalSize);
+  fill(255);
+  text("Size", x, y + signalSize);
+  
+  // Translation Green Signal
+  x -= signalSize + signalHGap;
+  if (translation_green) fill(0,200,30);
+  else fill(160);
+  rect(x, y, signalSize, signalSize);
+  fill(255);
+  text("Position", x, y + signalSize);
+  
 }
 
 //my example design for control, which is terrible
 void scaffoldControlLogic()
 {
-  //upper left corner, rotate counterclockwise
-  text("CCW", inchToPix(.4f), inchToPix(.4f));
-  if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
-    screenRotation--;
+  // Check for green signals
+  if (mousePressed) {
+    refresh_green();
+  }
 
-  //upper right corner, rotate clockwise
-  text("CW", width-inchToPix(.4f), inchToPix(.4f));
-  if (mousePressed && dist(width, 0, mouseX, mouseY)<inchToPix(.8f))
-    screenRotation++;
-
-  //lower left corner, decrease Z
-  text("-", inchToPix(.4f), height-inchToPix(.4f));
-  if (mousePressed && dist(0, height, mouseX, mouseY)<inchToPix(.8f))
-    screenZ = constrain(screenZ-inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone!
-
-  //lower right corner, increase Z
-  text("+", width-inchToPix(.4f), height-inchToPix(.4f));
-  if (mousePressed && dist(width, height, mouseX, mouseY)<inchToPix(.8f))
-    screenZ = constrain(screenZ+inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone! 
+  // Rotation Control
+  if(mousePressed && dist(rotationPoint.x, rotationPoint.y, mouseX, mouseY) < rotationControlSize && !(tcClicked || scClicked)) {
+    rcClicked = true;
+  }
+  
+  // Size Control
+  Point[] corners = getCorners();
+  for (Point corner : corners) {
+    if(mousePressed && dist(corner.x, corner.y, mouseX, mouseY) < sizeControlSize && !(rcClicked || tcClicked)) {
+      scClicked = true;
+    }
+  }
+  
+  // Translation Control
+  if (mousePressed && dist(screenTransX + width/2, screenTransY + height/2, mouseX, mouseY) < rectDiag && !(rcClicked || scClicked)) {
+    tcClicked = true;
+    tcOffsetX = mouseX - screenTransX + width/2;
+    tcOffsetY = mouseY - screenTransY + height/2;
+  }
 
   //left middle, move left
   text("left", inchToPix(.4f), height/2);
@@ -150,7 +243,7 @@ void scaffoldControlLogic()
 
 
 void mousePressed()
-{
+{  
   if (startTime == 0) //start time on the instant of the first user click
   {
     startTime = millis();
@@ -158,9 +251,21 @@ void mousePressed()
   }
 }
 
-
 void mouseReleased()
 {
+  if (rcClicked) {
+    rcClicked = false;
+    return;
+  }
+  if (tcClicked) {
+    tcClicked = false;
+    return;
+  }
+  if (scClicked) {
+    scClicked = false;
+    return;
+  }
+  
   //check to see if user clicked middle of screen within 3 inches
   if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
   {
@@ -175,6 +280,68 @@ void mouseReleased()
       finishTime = millis();
     }
   }
+}
+
+void mouseDragged() {
+  float cursorX = screenTransX + width/2;
+  float cursorY = screenTransY + height/2;
+  float distance = dist(cursorX, cursorY, mouseX, mouseY);
+  
+  // Size Control
+  if (scClicked) {
+    screenZ = constrain(sqrt(2) * distance, inchToPix(.25f), inchToPix(4f));
+    rectDiag = sqrt((screenZ*screenZ)/2);
+  }
+  
+  // Translation Control
+  else if (tcClicked) {
+    screenTransX = -(tcOffsetX - mouseX - width/2);
+    screenTransY = -(tcOffsetY - mouseY - height/2);
+  }
+  
+  // Rotation Control
+  else if (rcClicked) {
+    float rotation = PI * -2/4 + atan2((cursorY - mouseY), (cursorX - mouseX));
+    screenRotation = rotation * 180 / PI;
+  }
+}
+
+void refresh_green() {
+  Target t = targets.get(trialIndex);  
+  translation_green = dist(t.x, t.y, screenTransX, screenTransY)<inchToPix(.05f);
+  size_green = abs(t.z - screenZ)<inchToPix(.05f);
+  rotation_green = calculateDifferenceBetweenAngles(t.rotation, screenRotation)<=5;
+}
+
+Point[] getCorners() {
+  float x = screenTransX + width/2;
+  float y = screenTransY + height/2;
+  
+  float rectDiag = sqrt((screenZ*screenZ)/2);
+  float rectAngle = (float)Math.PI / 4;
+  float rotation = screenRotation * (float)Math.PI / 180;
+  
+  Point[] corners = new Point[4];
+  corners[0] = new Point(x +  rectDiag * cos(-rectAngle + rotation), y +  rectDiag * sin(-rectAngle + rotation));
+  corners[1] = new Point(x + -rectDiag * cos( rectAngle + rotation), y + -rectDiag * sin( rectAngle + rotation));
+  corners[2] = new Point(x + -rectDiag * cos(-rectAngle + rotation), y + -rectDiag * sin(-rectAngle + rotation));
+  corners[3] = new Point(x +  rectDiag * cos( rectAngle + rotation), y +  rectDiag * sin( rectAngle + rotation));
+  
+  return corners;
+}
+
+Point getHoveringPoint(Point p1, Point p2) {
+  float x1 = p1.x;
+  float y1 = p1.y;
+  float x2 = p2.x;
+  float y2 = p2.y;
+  
+  float diagLen = sqrt(pow((y1-y2),2) + pow((x1-x2),2));
+  
+  float x = (x1+x2)/2 + hoveringDist * (y1-y2) / diagLen;
+  float y = (y1+y2)/2 + hoveringDist * (x2-x1) / diagLen;
+  
+  return new Point(x,y);
 }
 
 
