@@ -143,7 +143,7 @@ void draw() {
   noFill();
   strokeWeight(3f);
   stroke(160);
-  if (translation_green && rotation_green && size_green) fill(0,255,0);
+  if (translation_green && rotation_green && size_green) stroke(0,255,0);
   rect(0, 0, screenZ, screenZ);
   popMatrix();
 
